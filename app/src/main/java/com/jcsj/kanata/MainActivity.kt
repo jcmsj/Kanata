@@ -2,22 +2,20 @@ package com.jcsj.kanata
 
 import android.Manifest.permission.BLUETOOTH
 import android.Manifest.permission.BLUETOOTH_ADMIN
-import android.Manifest.permission.BLUETOOTH_CONNECT
-import android.content.pm.PermissionInfo
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
-import androidx.compose.material.icons.filled.LteMobiledata
-import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -26,15 +24,23 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.text.isDigitsOnly
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.jcsj.kanata.ui.theme.KanataTheme
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -70,13 +76,14 @@ fun TopBar() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainLayout() {
+    val time = remember {mutableStateOf(5L)}
     Scaffold(
         topBar = {
             TopBar()
         },
         bottomBar = {
             BottomAppBar() {
-                Controls()
+                Controls(time.value)
             }
         }
     ) { contentPadding ->
@@ -84,36 +91,53 @@ fun MainLayout() {
             modifier = Modifier.padding(contentPadding)
         ) {
             Row() {
-                Text(
-                    text = "TODO"
-                )
+                Body(time)
             }
         }
     }
+
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun Body(time:MutableState<Long>) {
+    var text by remember {
+        mutableStateOf("")
+    }
+    TextField(
+        value = text,
+        modifier = Modifier.fillMaxWidth(),
+        label = {
+                Text("Timeout:")
+        },
+        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+        onValueChange = {
+            text = it
+            if (it.length > 1 && it.isDigitsOnly() ) {
+                time.value = it.toLong()
+            }
+        }
+    )
+
+}
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun Controls() {
+fun Controls(time:Long) {
     val ctx = LocalContext.current
-
     val permissions = rememberMultiplePermissionsState(
         listOf(
             BLUETOOTH,
             BLUETOOTH_ADMIN,
-            BLUETOOTH_CONNECT
         )
     )
-
     Row(
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier.fillMaxWidth()
     ) {
         IconButton(onClick = {
             if (permissions.allPermissionsGranted) {
-                val t = 1L
-                scheduleBluetoothTurnOff(ctx, t)
-                val toast = Toast.makeText(ctx, "Scheduling BT off in $t minute/s", Toast.LENGTH_LONG)
+                schedBTOff(ctx)(time)
+                val toast = Toast.makeText(ctx, "Scheduling BT off in $time minute/s", Toast.LENGTH_LONG)
                 toast.show()
             } else {
                 permissions.launchMultiplePermissionRequest()
@@ -124,18 +148,6 @@ fun Controls() {
                 contentDescription = "bluetooth"
             )
         }
-        IconButton(onClick = { /*TODO*/ }) {
-            Icon(
-                Icons.Filled.Wifi,
-                contentDescription = "wifi"
-            )
-        }
-        IconButton(onClick = { /*TODO*/ }) {
-            Icon(
-                Icons.Filled.LteMobiledata,
-                contentDescription = "Mobile Data"
-            )
-        }
     }
 }
 
@@ -143,6 +155,6 @@ fun Controls() {
 @Composable
 fun GreetingPreview() {
     KanataTheme {
-        Controls()
+        Controls(5)
     }
 }
